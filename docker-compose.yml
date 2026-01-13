@@ -1,0 +1,36 @@
+services:
+  # targets:
+  target_1:
+    build: .
+    container_name: target_1
+    volumes:
+      - .:/app # Map the entire project root
+    command: node app.js target
+
+  target_2:
+    build: .
+    container_name: target_2
+    volumes:
+      - .:/app
+    command: node app.js target
+
+  # splitter:
+  splitter:
+    build: .
+    container_name: splitter
+    volumes:
+      - .:/app
+    command: node app.js splitter
+    depends_on: # Preserving launch order
+      - target_1
+      - target_2
+
+  # agent:
+  agent:
+    build: .
+    container_name: agent
+    volumes:
+      - .:/app
+    command: node app.js agent
+    depends_on: # Preserving launch order
+      - splitter
