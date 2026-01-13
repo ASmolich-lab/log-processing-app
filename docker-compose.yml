@@ -21,16 +21,11 @@ services:
     volumes:
       - .:/app
     command: node app.js splitter
-    depends_on: # Preserving launch order
-      - target_1
-      - target_2
+    depends_on: [target_1, target_2] # Preserving launch order
 
   # agent:
   agent:
     build: .
     container_name: agent
-    volumes:
-      - .:/app
     command: node app.js agent
-    depends_on: # Preserving launch order
-      - splitter
+    depends_on: [splitter] # Preserving launch order
