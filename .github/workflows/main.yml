@@ -1,6 +1,11 @@
 name: Pipeline Integration
 on: [push]
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   GitHub-Actions-Pipeline:
     runs-on: ubuntu-latest
