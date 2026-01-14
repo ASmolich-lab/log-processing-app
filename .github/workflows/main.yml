@@ -36,6 +36,9 @@ jobs:
         if: success() || failure()
         with:
           report_paths: "test-results.xml"
+          annotate_only: false
+          detailed_summary: true
+          include_passed: true
 
       - name: Get artifacts
         if: always()
