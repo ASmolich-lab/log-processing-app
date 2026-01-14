@@ -2,25 +2,46 @@ name: Pipeline Integration
 on: [push]
 
 jobs:
-  GitHub-Actions-Logs:
+  GitHub-Actions-Pipeline:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v5
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+
+      - name: Set-up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Pytest
+        run: pip install pytest
 
       - name: Build
-        run: docker compose up -d --build
+        run: |
+          docker compose up -d --build
+          echo "Processing..."
+          sleep 5
 
-      - name: Get logs
+      - name: Run Automated Tests
+        run: pytest
+
+      - name: Get artifacts
         if: always()
         run: |
           mkdir -p artifacts
-          docker logs agent > artifacts/agent_init.log
-          docker logs splitter > artifacts/splitter_init.log
+          for c in agent splitter target_1 target_2; do
+            docker logs $c > artifacts/${c}_console.log
+          done
+
+          docker cp target_1:/app/events.log artifacts/target_1_events.log
+          docker cp target_2:/app/events.log artifacts/target_2_events.log
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
         with:
-          name: init-logs
+          name: results
           path: artifacts/
+
+      - name: Teardown
+        if: always()
+        run: docker compose down -v
