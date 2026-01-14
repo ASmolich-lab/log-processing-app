@@ -1,0 +1,26 @@
+name: Pipeline Integration
+on: [push]
+
+jobs:
+  GitHub-Actions-Logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v5
+      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+
+      - name: Build
+        run: docker-compose up -d --build
+
+      - name: Get logs
+        if: always()
+        run: |
+          mkdir -p artifacts
+          docker logs agent > artifacts/agent_init.log
+          docker logs splitter > artifacts/splitter_init.log
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: init-logs
+          path: artifacts/
