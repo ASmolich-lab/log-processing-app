@@ -34,7 +34,6 @@ jobs:
       # Integration tests
       - name: Run integration tests
         run: docker compose exec -T tester pytest tests/test_integration.py --junitxml=results-integration.xml
-        continue-on-error: true
 
       - name: Publish test results
         uses: mikepenz/action-junit-report@v4
