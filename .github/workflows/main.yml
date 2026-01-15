@@ -13,6 +13,12 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
+      - name: Unpack Complressed log
+        run: |
+          if [ -f agent/inputs/large_1M_events.log.gz ]; then
+            gzip -d agent/inputs/large_1M_events.log.gz
+          fi
+
       - name: Build and Start Env
         run: |
           docker compose up -d --build
