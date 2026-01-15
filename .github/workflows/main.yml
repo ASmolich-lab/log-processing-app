@@ -11,31 +11,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
-      - name: Set-up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Pytest
-        run: pip install pytest
-
-      - name: Build
+      - name: Build and Start Env
         run: |
           docker compose up -d --build
           echo "Processing..."
           sleep 5
 
-      - name: Run tests
-        run: pytest --junitxml=test-results.xml
+      - name: Run tests # Run tests inside container
+        run: docker compose exec -T tester pytest tests/test_data_verification.py --junitxml=results-verification.xml
         continue-on-error: true
 
       - name: Publish test results
-        uses: mikepenz/action-junit-report@v5
-        if: success() || failure()
+        uses: mikepenz/action-junit-report@v4
+        if: always()
         with:
-          report_paths: "test-results.xml"
+          report_paths: "results-*.xml"
           annotate_only: false
           detailed_summary: true
           include_passed: true
@@ -44,15 +36,17 @@ jobs:
         if: always()
         run: |
           mkdir -p artifacts
+          # Dump container logs
           for c in agent splitter target_1 target_2; do
-            docker logs $c > artifacts/${c}_console.log
+            docker logs $c > artifacts/${c}_console.log 2>&1
           done
 
-          docker cp target_1:/app/events.log artifacts/target_1_events.log
-          docker cp target_2:/app/events.log artifacts/target_2_events.log
+          # Copy events.log files
+          docker cp target_1:/app/events.log artifacts/target_1_events.log || true
+          docker cp target_2:/app/events.log artifacts/target_2_events.log || true
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: results
           path: artifacts/
