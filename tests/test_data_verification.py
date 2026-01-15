@@ -16,6 +16,7 @@ def test_log_line_count():
     Verify target_1 receives data from the Agent/Splitter. 
     Checking # of lines directly inside the container.
     """
+    time.sleep(5)
 
     result = run_docker_cmd("target_1", "wc -l < events.log")
 
