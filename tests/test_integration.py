@@ -41,17 +41,23 @@ def archive_and_clean_state():
     # Ensure artifacts directory exists
     os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 
-    # Archive
-    if os.path.exists(TARGET_LOG_FILE):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        archive_name = f"{timestamp}_test_events.log"
-        destination = os.path.join(ARTIFACTS_DIR, archive_name)
-        
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Archive for both target
+    for t in ["target_1", "target_2"]:
         try:
-            shutil.copy(TARGET_LOG_FILE, destination)
-            print(f"Archived logs to: {destination}")
-        except IOError as e:
-            print(f"Warning: Failed to archive logs: {e}")
+            # Re-use our helper to get content directly from the container
+            content = get_container_file_content(t, TARGET_LOG_FILE)
+            
+            # Only save if there is content
+            if content:
+                filename = f"{timestamp}_{t}.log"
+                path = os.path.join(ARTIFACTS_DIR, filename)
+                with open(path, "w") as f:
+                    f.write(content)
+                    print(f"Archived {t} logs to: {path}")
+        except Exception as e:
+            print(f"Warning: Failed to archive {t}: {e}")
 
     # Clear both targets
     for t in ["target_1", "target_2"]:
@@ -90,8 +96,6 @@ def test_data_uniqueness_hashing():
     - Purpose: Ensure the Splitter is not sending same data to target_1 and target_2
     - Goal: The SHA256 hash of output target_1 != target_2
     """
-    # Cleaning data
-    archive_and_clean_state()
 
     content_t1 = get_container_file_content("target_1", "events.log").encode('utf-8')
     content_t2 = get_container_file_content("target_2", "events.log").encode('utf-8')
@@ -100,6 +104,9 @@ def test_data_uniqueness_hashing():
     hash_t2 = hashlib.sha256(content_t2).hexdigest()
 
     print(f"Hash Comparison:\ntarget_1: {hash_t1}\ntarget_2: {hash_t2}")
+
+    # Cleaning data
+    archive_and_clean_state()
 
     # If hashes are equal, it means the splitter sent identical data to both (Broadcasting),
     # which contradicts the 'Splitter' requirement.
@@ -112,8 +119,6 @@ def test_filter_logic():
     - Purpose: Verify that 'info' and 'debug' logs are filtered out.
     - Goal: Only lines containing 'error' should pass (per filter.json).
     """
-    # Cleaning data
-    archive_and_clean_state()
 
     # Inject specific test data
     test_lines = [
