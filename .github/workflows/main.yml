@@ -1,4 +1,6 @@
+# .github/workflows/main.yml
 name: Pipeline Integration
+
 on: [push]
 
 permissions:
@@ -13,7 +15,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Unpack Complressed log
+      - name: Unpack complressed log
         run: |
           if [ -f agent/inputs/large_1M_events.log.gz ]; then
             gzip -d agent/inputs/large_1M_events.log.gz
@@ -25,8 +27,13 @@ jobs:
           echo "Processing..."
           sleep 5
 
-      - name: Run tests # Run tests inside container
-        run: docker compose exec -T tester pytest tests/test_data_verification.py --junitxml=results-verification.xml
+      # Smoke tests
+      - name: Run smoke tests
+        run: docker compose exec -T tester pytest tests/test_data_verificaton.py --junitxml=results-verification.xml
+
+      # Integration tests
+      - name: Run integration tests
+        run: docker compose exec -T tester pytest tests/test_integration.py --junitxml=results-integration.xml
         continue-on-error: true
 
       - name: Publish test results
@@ -46,8 +53,7 @@ jobs:
           for c in agent splitter target_1 target_2; do
             docker logs $c > artifacts/${c}_console.log 2>&1
           done
-
-          # Copy events.log files
+          # Copy events.log files using tester for safety
           docker cp target_1:/app/events.log artifacts/target_1_events.log || true
           docker cp target_2:/app/events.log artifacts/target_2_events.log || true
 
