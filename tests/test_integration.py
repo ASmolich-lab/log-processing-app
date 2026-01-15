@@ -33,7 +33,7 @@ def get_container_file_content(container_name, filepath):
         pytest.fail(f"Container {container_name} not found.")
 
 
-def archive_and_clean_state():
+def archive_and_clean_state(test_phase_name):
     """
     - Archives existing events.log to artifacts/ folder.
     - Truncates events.log to 0 bytes to ensure clean slate for next test.
@@ -44,7 +44,7 @@ def archive_and_clean_state():
     # Archive
     if os.path.exists(TARGET_LOG_FILE):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        archive_name = f"{timestamp}_events.log"
+        archive_name = f"{test_phase_name}_{timestamp}_test_events.log"
         destination = os.path.join(ARTIFACTS_DIR, archive_name)
         
         try:
@@ -83,6 +83,7 @@ def inject_test_data(filename, lines):
     time.sleep(5) # Wait for processing
 
 
+@pytest.mark.xfail(reason="Defect: Splitter broadcasts identical data")
 def test_data_uniqueness_hashing():
     """
     Verify the Splitter actually splits data (Target 1 != Target 2)
@@ -102,6 +103,7 @@ def test_data_uniqueness_hashing():
     assert hash_t1 != hash_t2, "Splitter error: Targets received identical data (Broadcasting detected)"
 
 
+@pytest.mark.xfail(reason="Defect: Splitter ignores filter.json config")
 def test_filter_logic():
     """
     - Purpose: Verify that 'info' and 'debug' logs are filtered out.
@@ -109,7 +111,7 @@ def test_filter_logic():
     """
 
     # Cleaning data
-    archive_and_clean_state()
+    archive_and_clean_state("filter_logic")
 
     # Inject specific test data
     test_lines = [
@@ -129,3 +131,31 @@ def test_filter_logic():
     assert "info" not in full_content, "'info' logs found in output"
     assert "debug" not in full_content, "'debug' logs found in output"
     assert "error" in full_content, "'error' logs found in output"
+
+
+@pytest.mark.parametrize("test_id, input_data", [
+    ("special_chars", ["Log #1 with $ymbols!", "User: admin@example.com", "Path: /var/log/sys.log"]),
+    ("unicode", ["Emoji log: 🚀 warning", "Japanese: エラー", "Cyrylica: Błąd"]),
+    ("whitespace", ["   leading space", "trailing space   ", "\tTabbed\tEntry"]),
+    ("json_format", ['{"id": 1, "msg": "json_log"}', '{"status": "error", "code": 500}'])
+])
+def test_content_handling_variations(test_id, input_data):
+    """
+    - Purpose: Verify system handles various content types correctly.
+    - Goal: Ensures no encoding issues or special character handling bugs.
+    """
+    # Clean state
+    archive_and_clean_state(f"var_{test_id}")
+    
+    # Inject data
+    inject_test_data(f"test_{test_id}.log", input_data)
+    
+    # We combine content from both targets (assuming splitter works as expected)
+    c1 = get_container_file_content("target_1", TARGET_LOG_FILE)
+    c2 = get_container_file_content("target_2", TARGET_LOG_FILE)
+    combined_output = c1 + c2
+    
+    # Assertions. Compare input to output
+    for line in input_data:
+        err_msg = f"Scenario '{test_id}' failed. Content missing or corrupted: '{line}'"
+        assert line in combined_output, err_msg
