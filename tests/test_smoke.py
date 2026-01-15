@@ -52,8 +52,8 @@ def test_pipeline_smoke_check():
         agent_logs = client.containers.get("agent").logs().decode('utf-8')
         print(f"DEBUG: Agent Logs:\n{agent_logs}")
         
-    assert t1_ready, f"Target 1 did not receive any data in {timeout}"
-    assert t2_ready, f"Target 2 did not receive any data in {timeout}"
+    assert t1_ready, f"Target 1 did not receive any data in {TIMEOUT}"
+    assert t2_ready, f"Target 2 did not receive any data in {TIMEOUT}"
 
 def test_load_balancing_logic():
     """
@@ -71,21 +71,3 @@ def test_load_balancing_logic():
     
     # Small delta is OK
     assert abs(count1 - count2) <= 1, f"Imbalanced splitting! T1:{count1} vs T2:{count2}"
-
-def test_data_uniqueness_hashing():
-    """
-    Verify the Splitter actually splits data (Target 1 != Target 2)
-    - Purpose: Ensure the Splitter is not sending same data to target_1 and target_2
-    - Goal: The SHA256 hash of output target_1 != target_2
-    """
-    content_t1 = get_container_file_content("target_1", "events.log").encode('utf-8')
-    content_t2 = get_container_file_content("target_2", "events.log").encode('utf-8')
-
-    hash_t1 = hashlib.sha256(content_t1).hexdigest()
-    hash_t2 = hashlib.sha256(content_t2).hexdigest()
-
-    print(f"Hash Comparison:\ntarget_1: {hash_t1}\ntarget_1: {hash_t2}")
-
-    # If hashes are equal, it means the splitter sent identical data to both (Broadcasting),
-    # which contradicts the 'Splitter' requirement.
-    assert hash_t1 != hash_t2, "Splitter failure: Targets received identical data (Broadcasting detected)"

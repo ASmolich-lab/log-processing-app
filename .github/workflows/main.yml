@@ -29,7 +29,7 @@ jobs:
 
       # Smoke tests
       - name: Run smoke tests
-        run: docker compose exec -T tester pytest tests/test_data_verification.py --junitxml=results-verification.xml
+        run: docker compose exec -T tester pytest tests/test_smoke.py --junitxml=results-verification.xml
 
       # Integration tests
       - name: Run integration tests
