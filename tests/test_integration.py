@@ -33,7 +33,7 @@ def get_container_file_content(container_name, filepath):
         pytest.fail(f"Container {container_name} not found.")
 
 
-def archive_and_clean_state(test_phase_name):
+def archive_and_clean_state():
     """
     - Archives existing events.log to artifacts/ folder.
     - Truncates events.log to 0 bytes to ensure clean slate for next test.
@@ -44,7 +44,7 @@ def archive_and_clean_state(test_phase_name):
     # Archive
     if os.path.exists(TARGET_LOG_FILE):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        archive_name = f"{test_phase_name}_{timestamp}_test_events.log"
+        archive_name = f"{timestamp}_test_events.log"
         destination = os.path.join(ARTIFACTS_DIR, archive_name)
         
         try:
@@ -90,6 +90,9 @@ def test_data_uniqueness_hashing():
     - Purpose: Ensure the Splitter is not sending same data to target_1 and target_2
     - Goal: The SHA256 hash of output target_1 != target_2
     """
+    # Cleaning data
+    archive_and_clean_state()
+
     content_t1 = get_container_file_content("target_1", "events.log").encode('utf-8')
     content_t2 = get_container_file_content("target_2", "events.log").encode('utf-8')
 
@@ -109,9 +112,8 @@ def test_filter_logic():
     - Purpose: Verify that 'info' and 'debug' logs are filtered out.
     - Goal: Only lines containing 'error' should pass (per filter.json).
     """
-
     # Cleaning data
-    archive_and_clean_state("filter_logic")
+    archive_and_clean_state()
 
     # Inject specific test data
     test_lines = [
@@ -126,7 +128,7 @@ def test_filter_logic():
     c1 = get_container_file_content("target_1", "events.log").lower()
     c2 = get_container_file_content("target_2", "events.log").lower()
     full_content = c1 + c2
-    
+
     # Assertions
     assert "info" not in full_content, "'info' logs found in output"
     assert "debug" not in full_content, "'debug' logs found in output"
@@ -144,8 +146,8 @@ def test_content_handling_variations(test_id, input_data):
     - Purpose: Verify system handles various content types correctly.
     - Goal: Ensures no encoding issues or special character handling bugs.
     """
-    # Clean state
-    archive_and_clean_state(f"var_{test_id}")
+    # Cleaning data
+    archive_and_clean_state()
     
     # Inject data
     inject_test_data(f"test_{test_id}.log", input_data)
@@ -167,8 +169,8 @@ def test_large_data_integrity():
     - Purpose: validate data integrity for large data / under high-volume.
     - Goal: Ensures that log lines are not merged, truncated, or split.
     """
-    # Clean state
-    archive_and_clean_state("test_large_data")
+    # Cleaning data
+    archive_and_clean_state()
 
     # Inject data
     count = 50000
