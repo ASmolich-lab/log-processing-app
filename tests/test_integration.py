@@ -83,7 +83,7 @@ def inject_test_data(filename, lines):
     time.sleep(5) # Wait for processing
 
 
-@pytest.mark.xfail(reason="Defect: Splitter broadcasts identical data", strict=False)
+# @pytest.mark.xfail(reason="Defect: Splitter broadcasts identical data", strict=False)
 def test_data_uniqueness_hashing():
     """
     Verify the Splitter actually splits data (Target 1 != Target 2)
@@ -103,7 +103,7 @@ def test_data_uniqueness_hashing():
     assert hash_t1 != hash_t2, "Splitter error: Targets received identical data (Broadcasting detected)"
 
 
-@pytest.mark.xfail(reason="Defect: Splitter ignores filter.json config", strict=False)
+# @pytest.mark.xfail(reason="Defect: Splitter ignores filter.json config", strict=False)
 def test_filter_logic():
     """
     - Purpose: Verify that 'info' and 'debug' logs are filtered out.
@@ -161,7 +161,7 @@ def test_content_handling_variations(test_id, input_data):
         assert line in combined_output, err_msg
 
 
-@pytest.mark.xfail(reason="Defect: Splitter is breaking lines", strict=False)
+# @pytest.mark.xfail(reason="Defect: Splitter is breaking lines", strict=False)
 def test_large_data_integrity():
     """
     - Purpose: validate data integrity for large data / under high-volume.
@@ -182,7 +182,6 @@ def test_large_data_integrity():
     c1 = get_container_file_content("target_1", TARGET_LOG_FILE)
     c2 = get_container_file_content("target_2", TARGET_LOG_FILE)
     
-    # 4. VERIFY INTEGRITY
     # We check if every line in the output follows the strict format "record_NUMBER"
     combined = c1.strip() + "\n" + c2.strip()
     
@@ -200,7 +199,7 @@ def test_large_data_integrity():
             failures.append(line)
             continue
 
-        # Check 2: Must end with a number (and nothing else)
+        # Must end with a number (and nothing else)
         split_str = line.split('_')
         if len(split_str) != 2 or not split_str[1].isdigit():
             error_count += 1
