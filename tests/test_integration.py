@@ -83,7 +83,7 @@ def inject_test_data(filename, lines):
     time.sleep(5) # Wait for processing
 
 
-@pytest.mark.xfail(reason="Defect: Splitter broadcasts identical data")
+@pytest.mark.xfail(reason="Defect: Splitter broadcasts identical data", strict=False)
 def test_data_uniqueness_hashing():
     """
     Verify the Splitter actually splits data (Target 1 != Target 2)
@@ -103,7 +103,7 @@ def test_data_uniqueness_hashing():
     assert hash_t1 != hash_t2, "Splitter error: Targets received identical data (Broadcasting detected)"
 
 
-@pytest.mark.xfail(reason="Defect: Splitter ignores filter.json config")
+@pytest.mark.xfail(reason="Defect: Splitter ignores filter.json config", strict=False)
 def test_filter_logic():
     """
     - Purpose: Verify that 'info' and 'debug' logs are filtered out.
@@ -159,3 +159,56 @@ def test_content_handling_variations(test_id, input_data):
     for line in input_data:
         err_msg = f"Scenario '{test_id}' failed. Content missing or corrupted: '{line}'"
         assert line in combined_output, err_msg
+
+
+@pytest.mark.xfail(reason="Defect: Splitter is breaking lines", strict=False)
+def test_large_data_integrity():
+    """
+    - Purpose: validate data integrity for large data / under high-volume.
+    - Goal: Ensures that log lines are not merged, truncated, or split.
+    """
+    # Clean state
+    archive_and_clean_state("test_large_data")
+
+    # Inject data
+    count = 50000
+    lines = [f"record_{i}" for i in range(count)]
+    inject_test_data("large_frag_test.log", lines)
+    
+    # Processing 50k lines
+    time.sleep(5)
+
+    # We combine content from both targets (assuming splitter works as expected)
+    c1 = get_container_file_content("target_1", TARGET_LOG_FILE)
+    c2 = get_container_file_content("target_2", TARGET_LOG_FILE)
+    
+    # 4. VERIFY INTEGRITY
+    # We check if every line in the output follows the strict format "record_NUMBER"
+    combined = c1.strip() + "\n" + c2.strip()
+    
+    error_count = 0
+    failures = []
+
+    # Assertions. Compare input to output
+    for line in combined.split('\n'):
+        if not line: continue
+        
+        # Valid line: "record_12345"
+        # Must start with "record_"
+        if not line.startswith("record_"):
+            error_count += 1
+            failures.append(line)
+            continue
+
+        # Check 2: Must end with a number (and nothing else)
+        split_str = line.split('_')
+        if len(split_str) != 2 or not split_str[1].isdigit():
+            error_count += 1
+            failures.append(line)
+
+    # Report findings
+    if error_count > 0:
+        print(f"\nReport: {error_count} corrupted lines detected.")
+        print(f"Failures: {failures}")
+
+    assert error_count == 0, f"Fragmentation detected! {error_count} lines were corrupted/split."
