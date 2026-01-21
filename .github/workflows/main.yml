@@ -15,7 +15,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Unpack complressed log
+      - name: Unpack compressed log
         run: |
           if [ -f agent/inputs/large_1M_events.log.gz ]; then
             gzip -d agent/inputs/large_1M_events.log.gz
