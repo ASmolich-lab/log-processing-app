@@ -28,7 +28,7 @@ We utilize a **Separate Test Runner** (Sidecar) approach for cross-platform comp
 2.  **Execute Smoke Tests:**
 
     ```bash
-    docker compose exec tester pytest tests/test_data_verification.py
+    docker compose exec tester pytest tests/test_smoke.py
     ```
 
 3.  **Execute Integration Tests:**
@@ -38,7 +38,6 @@ We utilize a **Separate Test Runner** (Sidecar) approach for cross-platform comp
     ```
 
 4.  **View Results & Artifacts:**
-
     - Console output indicates Pass/Fail status.
     - Debug logs and file captures are saved to the `artifacts/` directory on your host.
 
