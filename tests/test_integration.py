@@ -86,7 +86,7 @@ def test_large_data_integrity(injector, read_container_file):
     Validate data integrity for large data / under high-volume.
     """
     # 1. INJECT
-    count = 50000
+    count = 250000
     lines = [f"record_{i}" for i in range(count)]
     injector("large_frag_test.log", lines)
     
