@@ -51,7 +51,6 @@ We utilize a **Separate Test Runner** (Sidecar) approach for cross-platform comp
 
 The following critical issues are detected by this suite (tests will fail to highlight regressions):
 
-- **Splitter Failure:** The Splitter broadcasts identical data to both targets instead of load balancing.
 - **Filtering Ignored:** The Splitter ignores `filter.json` configuration and passes all log levels.
 - **TCP Fragmentation:** Large datasets are not buffered, causing lines to be merged or truncated.
 
