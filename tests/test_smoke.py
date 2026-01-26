@@ -1,76 +1,50 @@
 import pytest
-import docker
 import time
-import hashlib
+import json
 
-# Initialize Docker Client (Connects via /var/run/docker.sock)
-client = docker.from_env()
-
-# Timeout settins (seconds):
-TIMEOUT = 20
-
-def get_container_file_content(container_name, filepath):
+def test_load_balancing_approximate(injector, read_container_file):
     """
-    Retrieves file content from a container
+    Smoke Test: Verifies system connectivity and approximate load balancing.
+    
+    NOTE: We use a loose tolerance (30%) because the Splitter has a known 
+    defect where it splits by 'Packet' rather than 'Line', causing 
+    Target 2 to receive the bulk of large TCP chunks.
     """
-    try:
-        container = client.containers.get(container_name)
-        # exec_run returns (exit_code, byte_stream)
-        exit_code, output = container.exec_run(f"cat {filepath}")
-        
-        if exit_code != 0:
-            return None
-        return output.decode('utf-8')
-    except docker.errors.NotFound:
-        pytest.fail(f"Container {container_name} not found.")
 
-def wait_for_file(container_name, filepath, timeout=TIMEOUT):
-    """
-    Waits for file to exist and be non-empty
-    """
-    start = time.time()
-    while time.time() - start < timeout:
-        content = get_container_file_content(container_name, filepath)
-        if content and len(content.strip()) > 0:
-            return True
-        time.sleep(1)
-    return False
+# 1. GENERATE & INJECT TRAFFIC
+    # Create 1,000 lines of data. Enough for a statistical sample, fast to process.
+    print("Injecting self-contained smoke test data...")
+    input_lines = [f"smoke_log_line_{i}" for i in range(10000)]
+    
+    # The 'injector' fixture (from conftest.py):
+    # - Writes 'smoke.log' to agent/inputs/
+    # - Updates agent/inputs.json
+    # - Restarts the Agent
+    # - Waits 5 seconds
+    injector("smoke.log", input_lines)
 
-def test_pipeline_smoke_check():
-    """
-    Smoke test: Verify the pipeline is up and both targets received data
-    - Purpose: Verify end-to-end connectivity from Agent -> Splitter -> Targets
-    - Goal: target_1 and target_2 must have the 'events.log' file with content
-    """
-    # 1. Wait for data to propagate
-    print("Waiting for pipeline to stabilize...")
-    t1_ready = wait_for_file("target_1", "events.log")
-    t2_ready = wait_for_file("target_2", "events.log")
+    # 2. RETRIEVE CONTENT
+    # Use the shared fixture from conftest.py
+    content_t1 = read_container_file("target_1", "events.log")
+    content_t2 = read_container_file("target_2", "events.log")
 
-    if not t1_ready or not t2_ready:
-        # Fetch logs for debugging if failure occurs
-        agent_logs = client.containers.get("agent").logs().decode('utf-8')
-        print(f"DEBUG: Agent Logs:\n{agent_logs}")
-        
-    assert t1_ready, f"Target 1 did not receive any data in {TIMEOUT}"
-    assert t2_ready, f"Target 2 did not receive any data in {TIMEOUT}"
+    # 3. ANALYZE
+    count_t1 = content_t1.count('\n')
+    count_t2 = content_t2.count('\n')
+    total = count_t1 + count_t2
+    
+    print(f"\nTraffic Stats:\nTarget 1: {count_t1}\nTarget 2: {count_t2}\nTotal:    {total}")
 
-def test_load_balancing_logic():
-    """
-    Verify the Splitter balances load close to equal line counts
-    - Purpose: Validate the round-robin logic of the Splitter
-    - Goal: Line counts in target_1 and target_2 should be equal (or off by 1). Deviation could be up to 30% due to 'Tail Swallowing' bug
-    """
-    c1 = get_container_file_content("target_1", "events.log").strip().split('\n')
-    c2 = get_container_file_content("target_2", "events.log").strip().split('\n')
+    # Sanity Check: Did anything happen?
+    if total == 0:
+        pytest.fail("Smoke Test Failed: No events received at all. System might be down.")
 
-    count_t1 = len(c1)
-    count_t2 = len(c2)
-
-    total, diff = count_t1 + count_t2, abs(count_t1 - count_t2)
+    # 4. CALCULATE DEVIATION
+    diff = abs(count_t1 - count_t2)
     percentage_off = (diff / total) * 100
     
-    print(f"Split Balance: {percentage_off:.2f}% deviation (T1:{count_t1}, T2:{count_t2})")
+    print(f"Deviation: {percentage_off:.2f}%")
 
-    # FAIL if deviation > 30% (Loose tolerance due to 'Tail Swallowing' bug)
+    # 5. ASSERTION
+    # We allow up to 30% deviation to account for the "Tail Swallowing" bug.
     assert percentage_off < 30, f"Severe imbalance detected! Deviation: {percentage_off:.2f}%"
